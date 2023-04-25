@@ -1,20 +1,14 @@
 ﻿
+using PdfiumViewer;
 using Microsoft.Win32;
-using Newtonsoft.Json;
 using PrinterApp.Properties;
-using System;
-using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Printing;
 using System.IO;
 using System.Net.Http;
 using System.Printing;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
-using static PrinterApp.Auth;
+using System.Drawing.Printing;
+using System;
 
 namespace PrinterApp
 {
@@ -25,8 +19,8 @@ namespace PrinterApp
     {
         public MainWindow()
         {
-            InitializeComponent();          
-            // TokenLabel.Content = Settings.Default.AuthToken;
+            InitializeComponent();
+            lblUserName.Content = "Пользователь: " + Properties.Settings.Default.UserLogin;
         }
 
         public void btnAddFile_Click(object sender,RoutedEventArgs e)
@@ -52,7 +46,7 @@ namespace PrinterApp
             }
         }
 
-        public async void btnUploadFile_Click(object sender, RoutedEventArgs e)
+        public async void btnUploadFile_Click(object sender,RoutedEventArgs e)
         {
             ItemInfo itemInfo = FromSender(sender);
             if(itemInfo == null)
@@ -76,7 +70,7 @@ namespace PrinterApp
 
             // Добавление содержимого файла в контент
             var fileContentByteArray = new ByteArrayContent(fileContent);
-            content.Add(fileContentByteArray,"file",$"{itemInfo.Name}");
+            content.Add(fileContentByteArray,"document",$"{itemInfo.Name}");
 
             // Отправка запроса на сервер
             var response = await client.PostAsync("https://sign-o.ru/api/v1/file/",content);
@@ -92,29 +86,62 @@ namespace PrinterApp
             }
         }
 
-        private void btnDeleteFile_Click(object sender, RoutedEventArgs e)
+        private void btnDeleteFile_Click(object sender,RoutedEventArgs e)
         {
             ItemInfo itemInfo = FromSender(sender);
-            if (itemInfo != null)
+            if(itemInfo != null)
             {
                 // Удаляем элемент из списка
                 lvFiles.Items.Remove(itemInfo);
             }
         }
 
-        private void btnToPrint_Click(object sender, RoutedEventArgs e)
+        private void btnToPrint_Click(object sender,RoutedEventArgs e)
         {
             ItemInfo itemInfo = FromSender(sender);
-            if (itemInfo != null)
+            if(itemInfo != null)
             {
-                MessageBox.Show("Данная функция находится на стадии разработки! ;)");
+                string filePath = itemInfo.Path;
+                if(File.Exists(filePath))
+                {
+                    PdfDocument document = PdfDocument.Load(filePath);
+                    PrintDocument printDocument = new PrintDocument();
+                    int pageNumber = 0;
+                    printDocument.PrintPage += (sender,e) =>
+                    {
+                        // Draw the PDF page on the printer graphics object
+                        using(var image = document.Render(pageNumber++,e.PageBounds.Width,e.PageBounds.Height,PdfRenderFlags.CorrectFromDpi))
+                        {
+                            // Draw the image on the printer graphics object
+                            e.Graphics.DrawImage(image,e.PageBounds);
+                        }
+                        bool hasMore = e.PageSettings.PrinterSettings.PrintRange == PrintRange.AllPages && pageNumber < document.PageCount;
+                        Console.WriteLine($"Print page {pageNumber} with hasMore = {hasMore}");
+                        // Set the HasMorePages property to indicate whether there are more pages to print
+                        e.HasMorePages = hasMore;
+                    };
+
+                    PrintDialog printDialog = new PrintDialog();
+                    if(printDialog.ShowDialog() == true)
+                    {
+                        // Get the printer settings from the selected printer
+                        PrintQueue printQueue = new PrintQueue(new PrintServer(),printDialog.PrintQueue.Name);
+                        printDocument.PrinterSettings.PrinterName = printQueue.FullName;
+                        printDocument.PrinterSettings.PrintRange = PrintRange.AllPages;
+                        // Print the document
+                        printDocument.Print();
+                    }
+
+                    // Dispose of the PdfDocument object
+                    document.Dispose();
+                }
             }
         }
 
         private ItemInfo FromSender(object sender)
         {
             Button button = sender as Button;
-            if (button != null)
+            if(button != null)
             {
                 // Получаем элемент данных из контекста кнопки
                 ItemInfo itemInfo = button.DataContext as ItemInfo;
@@ -149,7 +176,7 @@ namespace PrinterApp
         {
             if(Settings.Default.AuthToken != null)
             {
-                MessageBoxResult result = MessageBox.Show("Вы действительно хотите выйти?", "Выход", MessageBoxButton.YesNo,MessageBoxImage.Question);
+                MessageBoxResult result = MessageBox.Show("Вы действительно хотите выйти?","Выход",MessageBoxButton.YesNo,MessageBoxImage.Question);
                 if(result == MessageBoxResult.Yes)
                 {
                     Settings.Default.AuthToken = null;

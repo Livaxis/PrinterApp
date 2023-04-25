@@ -1,4 +1,5 @@
 ﻿<Window x:Class="PrinterApp.MainWindow"
+        WindowStartupLocation="CenterScreen"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="SignO" Height="500" Width="800"
@@ -17,11 +18,12 @@
                    HorizontalAlignment="Stretch"
                    Margin="30, 10, 30, 10">
 
-            <Label Content="Ivan Ivanov" 
+            <Label x:Name="lblUserName" Content="User Name"
                     HorizontalAlignment="Left"
                     FontFamily="inter" 
-                    FontWeight="Light" 
-                    FontSize="20"
+                    
+                    FontSize="12"
+                    FontWeight="Medium" 
                     FontStyle="Normal"/>
 
             <Button Content="Выход" 
@@ -57,19 +59,23 @@
                     FontStyle="Normal"/>
 
             <Button x:Name="btnAddFile" 
+                    
                     Content="Выберите файл" 
                     Click="btnAddFile_Click" 
                     Margin="8,0,5,0" 
                     Padding="5"
-                    FontFamily="inter" 
-                    FontWeight="Medium" 
-                    FontSize="12"
-                    FontStyle="Normal"
+                                    FontFamily="inter" 
+                                    FontWeight="Medium" 
+                                    FontSize="12"
+                                    FontStyle="Normal"
+                                    Background="Gray" 
+                                    Foreground="White"
+                    BorderThickness="0"
                     HorizontalAlignment="Left"
             >
                 <Button.Effect>
                     <DropShadowEffect BlurRadius="2" 
-                                      Color="Gray" 
+                                    
                                       Direction="270" 
                                       Opacity="1" 
                                       ShadowDepth="0" />
@@ -80,6 +86,7 @@
                                 Value="3"></Setter>
                     </Style>
                 </Button.Resources>
+                
             </Button>
         </DockPanel>
 
@@ -132,7 +139,6 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate >
-
                     <DockPanel HorizontalAlignment="Stretch">
                         <StackPanel  Grid.Row="0"   
                                  Grid.Column="0"
@@ -189,7 +195,7 @@
                             </Button>
 
                             <Button Content="На печать" 
-                                    IsEnabled="False"
+                                    IsEnabled="True"
                                     Click="btnToPrint_Click"
                                     Command="{Binding Name}"
                                     FontFamily="inter" 
@@ -207,9 +213,9 @@
                                                 Value="3"></Setter>
                                     </Style>
                                 </Button.Resources>
-                            </Button>
+                                </Button>
 
-                            <Button Content="В Сигно" 
+                                <Button Content="В Сигно" 
                                     Click="btnUploadFile_Click"
                                     Command="{Binding Name}"
                                     CommandParameter="{Binding Path}"
