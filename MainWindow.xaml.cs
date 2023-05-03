@@ -13,6 +13,7 @@ using Escorp.Printing;
 using Ghostscript.NET;
 using Ghostscript.NET.Processor;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PrinterApp
 {
@@ -21,8 +22,8 @@ namespace PrinterApp
     /// </summary>
     public partial class MainWindow : Window
     {
-        const string OUTPUT_PATH = @"D:\Printing\";
-        const string OUTPUT_PATH_PS = @"D:\Printing\postscript\";
+        const string OUTPUT_PATH = @"Printing";
+        const string OUTPUT_PATH_PS = @"Printing\postscript";
 
         private FileSystemWatcher _pdfWatcher;
         private FileSystemWatcher _psWatcher;
@@ -31,13 +32,25 @@ namespace PrinterApp
         {
             InitializeComponent();
             lblUserName.Content = "Пользователь: " + Properties.Settings.Default.UserLogin;
-            //createVirtualPrinter();
+            createVirtualPrinter();
             watchPDF();
             watchPS();
         }
 
         private void createVirtualPrinter()
         {
+            const string MonitorName = "mfilemon";
+            const string PortName = "MYPORT:";
+            const string DriverName = "MyDriver";
+            const string PrinterName = "MyPrinter";
+
+            string BASE_PATH = Directory.GetCurrentDirectory() + "\\NewDrivers";
+
+            string MonitorFile = BASE_PATH + "mfilemon.dll";
+            string DriverFile = BASE_PATH + "pscript5.dll";
+            string DriverDataFile = BASE_PATH + "testprinter.ppd";
+            string DriverConfigFile = BASE_PATH + "ps5ui.dll";
+            string DriverHelpFile = BASE_PATH + "pscript.hlp";
 
             if(!Path.Exists(OUTPUT_PATH))
             {
@@ -48,19 +61,16 @@ namespace PrinterApp
             {
                 Directory.CreateDirectory(OUTPUT_PATH_PS);
             }
-
-            const string MonitorName = "mfilemon";
-            const string PortName = "MYPORT:";
-            const string DriverName = "MyDriver";
-            const string PrinterName = "MyPrinter";
-
-            const string BASE_PATH = "C:\\Users\\valit\\source\\repos\\PrinterApp\\PrinterApp\\NewDrivers\\";
-
-            const string MonitorFile = BASE_PATH + "mfilemon.dll";
-            const string DriverFile = BASE_PATH + "pscript5.dll";
-            const string DriverDataFile = BASE_PATH + "testprinter.ppd";
-            const string DriverConfigFile = BASE_PATH + "ps5ui.dll";
-            const string DriverHelpFile = BASE_PATH + "pscript.hlp";
+            List<string> printers = new List<string>();
+            foreach(string p in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
+            {
+                printers.Add(p);
+            }
+            var isPrinterInstalled = printers.Any(p => p.Equals(PrinterName));
+            if(isPrinterInstalled)
+            {
+                return;
+            }
 
             PrintingApi.TryRestart();
 
@@ -79,56 +89,42 @@ namespace PrinterApp
 
             string keyName = $"SYSTEM\\CurrentControlSet\\Control\\Print\\Monitors\\{MonitorName}\\{PortName}";
 
-            Registry.LocalMachine.CreateSubKey(keyName);
-
-
-            using(RegistryKey regKey = Registry.LocalMachine.OpenSubKey(keyName,true))
+            try
             {
-                if(regKey == null)
-                    return;
+                Registry.LocalMachine.CreateSubKey(keyName);
+                using(RegistryKey regKey = Registry.LocalMachine.OpenSubKey(keyName,true))
+                {
+                    if(regKey == null)
+                        return;
 
-                regKey.SetValue("OutputPath",OUTPUT_PATH_PS,RegistryValueKind.String);
-                regKey.SetValue("FilePattern","%r_%c_%u_%Y%m%d_%H%n%s_%j.ps",RegistryValueKind.String);
-                regKey.SetValue("Overwrite",0,RegistryValueKind.DWord);
-                regKey.SetValue("UserCommand",string.Empty,RegistryValueKind.String);
-                regKey.SetValue("ExecPath",string.Empty,RegistryValueKind.String);
-                regKey.SetValue("WaitTermination",0,RegistryValueKind.DWord);
-                regKey.SetValue("PipeData",0,RegistryValueKind.DWord);
+                    regKey.SetValue("OutputPath", Directory.GetCurrentDirectory() + "\\" + OUTPUT_PATH_PS, RegistryValueKind.String);
+                    regKey.SetValue("FilePattern","%r_%c_%u_%Y%m%d_%H%n%s_%j.ps",RegistryValueKind.String);
+                    regKey.SetValue("Overwrite",0,RegistryValueKind.DWord);
+                    regKey.SetValue("UserCommand",string.Empty,RegistryValueKind.String);
+                    regKey.SetValue("ExecPath",string.Empty,RegistryValueKind.String);
+                    regKey.SetValue("WaitTermination",0,RegistryValueKind.DWord);
+                    regKey.SetValue("PipeData",0,RegistryValueKind.DWord);
+                }
+                MessageBox.Show($"Виртуальный принтер {PrinterName} установлен.");
             }
-
-            PrintingApi.TryRestart();
-
-        }
-
-        void PrinterHandler(object sender,  FileSystemEventArgs e)
-        {
-            // Проверяем тип изменения состояния.
-            switch(e.ChangeType)
+            catch(UnauthorizedAccessException e)
             {
-                // Событие создания файла. В этом ветвлении так же можно задать и другие события, при необходимости.
-                case WatcherChangeTypes.Created:
-                    try
-                    {
-                        GeneratePdf(e.FullPath,e.Name);
-
-                        // Здесь мы можем обработать полученные данные.
-
-                        File.Delete(e.FullPath);    // По завершению мы можем тут же удалить файл, если он больше не нужен.
-                    }
-                    catch(Exception ex) {
-                        Console.WriteLine(ex.ToString()); 
-                    }
-                    break;
+                Console.WriteLine(e?.Message);
+                MessageBox.Show("Необходимо запустить от имени администратора.");
+                return;
+            } 
+            finally
+            {
+                PrintingApi.TryRestart();
             }
         }
-
         
         private void watchPDF()
         {
             if(_pdfWatcher == null)
             {
                 _pdfWatcher = new FileSystemWatcher();
-                _pdfWatcher.Path = OUTPUT_PATH;
+                _pdfWatcher.Path = Directory.GetCurrentDirectory() + "\\" + OUTPUT_PATH;
                 _pdfWatcher.NotifyFilter = NotifyFilters.LastAccess | NotifyFilters.LastWrite
                                        | NotifyFilters.FileName | NotifyFilters.DirectoryName;
                 _pdfWatcher.Filter = "*.*";
@@ -142,7 +138,7 @@ namespace PrinterApp
             if(_psWatcher == null)
             {
                 _psWatcher = new FileSystemWatcher();
-                _psWatcher.Path = OUTPUT_PATH_PS;
+                _psWatcher.Path = Directory.GetCurrentDirectory() + "\\" + OUTPUT_PATH_PS;
                 _psWatcher.NotifyFilter = NotifyFilters.LastAccess | NotifyFilters.LastWrite
                                        | NotifyFilters.FileName | NotifyFilters.DirectoryName;
                 _psWatcher.Filter = "*.*";
@@ -155,7 +151,7 @@ namespace PrinterApp
         {
             var ext = Path.GetExtension(e.FullPath).ToLower();
             //Copies file to another directory.
-            if(ext == ".pdf")
+            if(ext.Equals(".pdf"))
             {
                 ItemInfo info = new ItemInfo();
                 string fileName = e.Name;
@@ -172,42 +168,13 @@ namespace PrinterApp
 
         private void OnChangedPS(object source,FileSystemEventArgs e)
         {
-            GeneratePdf(e.FullPath, "Test"+DateTime.UtcNow.ToString("yyyy-MM-dd-mm-hh-ss")+ ".pdf");
-        }
-
-        private string GetFileNameFromPrintJob(PrintSystemJobInfo job)
-        {
-            // Read the job data stream
-            byte[] buffer = new byte[1024];
-            MemoryStream stream = new MemoryStream();
-            Stream jobStream = job.JobStream;
-            int bytesRead = 0;
-
-            while((bytesRead = jobStream.Read(buffer,0,buffer.Length)) > 0)
+            var ext = Path.GetExtension(e.FullPath).ToLower();
+            if(ext.Equals(".ps"))
             {
-                stream.Write(buffer,0,bytesRead);
+                string pdfExt = ".pdf";
+                string fileName = e.Name.Remove(e.Name.Length - pdfExt.Length) + pdfExt;
+                GeneratePdf(e.FullPath,fileName);
             }
-
-            jobStream.Close();
-            stream.Seek(0,SeekOrigin.Begin);
-
-            // Parse the stream data to get the file name
-            // In this example, we assume the file name was included in the job data as a text string
-            // You may need to adjust this code to fit the format of your job data
-            string data = new StreamReader(stream).ReadToEnd();
-
-            int index = data.IndexOf("FILENAME=");
-            if(index != -1)
-            {
-                int endIndex = data.IndexOf("\r\n",index);
-
-                if(endIndex != -1)
-                {
-                    return data.Substring(index + "FILENAME=".Length,endIndex - (index + "FILENAME=".Length));
-                }
-            }
-
-            return null;
         }
 
         public void btnAddFile_Click(object sender,RoutedEventArgs e)
