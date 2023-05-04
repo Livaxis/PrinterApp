@@ -28,7 +28,7 @@
                        FontStyle="Normal"
                        FontFamily="inter" 
                        FontWeight="SemiBold" />
-                <TextBox x:Name="LoginTextBox" Height="30" VerticalContentAlignment="Center"/>
+                <TextBox x:Name="LoginTextBox" Height="30" VerticalContentAlignment="Center" TextChanged="LoginTextBox_TextChanged"/>
                 <Label Content="Пароль"
                        FontSize="12" 
                        FontStyle="Normal"

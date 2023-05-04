@@ -333,8 +333,7 @@ namespace PrinterApp
                 MessageBoxResult result = MessageBox.Show("Вы действительно хотите выйти?","Выход",MessageBoxButton.YesNo,MessageBoxImage.Question);
                 if(result == MessageBoxResult.Yes)
                 {
-                    Settings.Default.AuthToken = null;
-                    Settings.Default.Save();
+                    SettingsUtils.Logout();
                     new Auth().Show();
                     this.Close();
                 }

@@ -1,4 +1,5 @@
-﻿using PrinterApp.Properties;
+﻿using Ghostscript.NET.Processor;
+using PrinterApp.Properties;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -22,6 +23,10 @@ namespace PrinterApp
                 {
                     Application.Current.MainWindow = new Auth();
                 }
+                else if(isSettingsNotFilled() || PrinterUtils.isGhostScriptNotInstalled())
+                {
+                    Application.Current.MainWindow = new SettingsWindow();
+                }
                 else
                 {
                     Application.Current.MainWindow = new MainWindow();
@@ -29,5 +34,15 @@ namespace PrinterApp
                 Application.Current.MainWindow.Show();
             }
         }
+
+        private bool isSettingsNotFilled()
+        {
+            return String.IsNullOrEmpty(Settings.Default.PsFolder) ||
+                String.IsNullOrEmpty(Settings.Default.PdfFolder) ||
+                String.IsNullOrEmpty(Settings.Default.PrinterName) ||
+                String.IsNullOrEmpty(Settings.Default.PortName);
+        }
+
+        
     }
 }

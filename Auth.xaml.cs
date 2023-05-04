@@ -57,7 +57,7 @@ namespace PrinterApp
                 Settings.Default.Save();
 
                 // обработка полученного токена
-                new MainWindow().Show();
+                new SettingsWindow().Show();
                 this.Close();
             }
             catch (HttpRequestException ex)
@@ -92,6 +92,11 @@ namespace PrinterApp
         {
             [JsonProperty("auth_token")]
             public string Token { get; set; }
+        }
+
+        private void LoginTextBox_TextChanged(object sender,System.Windows.Controls.TextChangedEventArgs e)
+        {
+
         }
     }
 }
