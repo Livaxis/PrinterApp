@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <StartupObject>PrinterApp.App</StartupObject>
+    <Platforms>AnyCPU;x86</Platforms>
   </PropertyGroup>
 
   <ItemGroup>

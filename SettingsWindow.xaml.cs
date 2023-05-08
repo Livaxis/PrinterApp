@@ -1,22 +1,19 @@
-﻿using Microsoft.Win32;
+﻿using Escorp.Printing;
+using Microsoft.Win32;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using Microsoft.WindowsAPICodePack.Shell;
+using Org.BouncyCastle.Crypto.Tls;
 using PrinterApp.Properties;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Printing;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
-
+using Environment = System.Environment;
 
 namespace PrinterApp
 {
@@ -25,6 +22,7 @@ namespace PrinterApp
     /// </summary>
     public partial class SettingsWindow : Window
     {
+
         public SettingsWindow()
         {
             InitializeComponent();
@@ -47,21 +45,36 @@ namespace PrinterApp
 
         public void saveSettingsClick(object sender, RoutedEventArgs e)
         {
+            Button button = (Button)sender;
+            button.IsEnabled = false;
             string psFolder = psFolderTB.Text;
             Settings.Default.PsFolder = psFolder;
             string pdfFolder = pdfFolderTB.Text;
             Settings.Default.PdfFolder = pdfFolder;
 
-            if(!tryCreateDirectory(psFolder)) { return; }
+            if(!tryCreateDirectory(psFolder)) {
+                button.IsEnabled = true;
+                return; 
+            }
 
-            if(!tryCreateDirectory(pdfFolder)) { return; }
+            if(!tryCreateDirectory(pdfFolder)) {
+                button.IsEnabled = true;
+                return; 
+            }
 
             Settings.Default.PrinterName = printerNameTB.Text;
             Settings.Default.PortName = portNameTB.Text;
 
-            if(PrinterUtils.isGhostScriptNotInstalled())
+            if(PrinterUtils.IsGhostScriptNotInstalled())
             {
                 showDownloadChostscriptDialog();
+                button.IsEnabled = true;
+                return;
+            }
+
+            if(!createVirtualPrinter())
+            {
+                button.IsEnabled = true;
                 return;
             }
 
@@ -119,7 +132,7 @@ namespace PrinterApp
 
         private void openDownloadChostscriptPage()
         {
-            if(PrinterUtils.isGhostScriptNotInstalled())
+            if(PrinterUtils.IsGhostScriptNotInstalled())
             {
                 const string x32System = "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10011/gs10011w32.exe";
                 const string x64System = "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10011/gs10011w64.exe";
@@ -158,6 +171,156 @@ namespace PrinterApp
             }
 
             return string.Empty;
+        }
+
+        private bool createVirtualPrinter()
+        {
+            const string monitorName = "mfilemon";
+            const string driverName = "SignoDriver";
+
+            string portName = portNameTB.Text;
+            string printerName = printerNameTB.Text;
+
+            string BASE_PATH = Directory.GetCurrentDirectory() + "\\NewDrivers\\";
+
+            string monitorFile = BASE_PATH + "mfilemon.dll";
+            string driverFile = BASE_PATH + "pscript5.dll";
+            string DriverDataFile = BASE_PATH + "testprinter.ppd";
+            string DriverConfigFile = BASE_PATH + "ps5ui.dll";
+            string DriverHelpFile = BASE_PATH + "pscript.hlp";
+
+            PrintingApi.TryRestart();
+
+            Monitor monitor = new Monitor(monitorName,monitorFile);
+            if(!PrinterUtils.IsMonitorInstalled(monitorName))
+            {
+                bool installed = monitor.TryInstall();
+                if(!installed)
+                {
+                    MessageBox.Show("Безуспешная установка монитора. Попробуйте еще раз.");
+                    return false;
+                }
+            }
+
+            
+            if(!PrinterUtils.IsPortInstalled(portName))
+            {
+                PrintingApi.OpenPort(portName,monitor);
+                if(!PrinterUtils.IsPortInstalled(portName))
+                {
+                    MessageBox.Show($"Безуспешная установка порта {portName}. Попробуйте еще раз.");
+                    return false;
+                }
+
+                if(!isRegistryConfigured(monitorName,portName))
+                {
+                    if(!configureMonitorRegistry(monitorName,portName))
+                    {
+                        deleteRegistryConfig(monitorName,portName);
+                        return false;
+                    }
+                }
+            }
+
+            
+            if(!PrinterUtils.IsDriverInstalled(driverName))
+            {
+                PrintingApi.InstallDriver(
+                    driverName,
+                    driverFile,
+                    DriverDataFile,
+                    DriverConfigFile,
+                    DriverHelpFile,
+                    3,
+                    Escorp.Printing.Environment.Current,
+                    DataType.RAW,
+                    null,
+                    monitor);
+
+                if(!PrinterUtils.IsDriverInstalled(driverName))
+                {
+                    MessageBox.Show($"Безуспешная установка драйвера {driverName}. Попробуйте еще раз.");
+                    return false;
+                }
+            }
+
+            if(!PrinterUtils.IsPrinterInstalled(printerName))
+            {
+                Printer printer = new(printerName,portName,driverName);
+                bool installed = printer.TryInstall();
+                if(!installed)
+                {
+                    MessageBox.Show($"Безуспешная установка принтера {printerName} с указанной ошибкой {monitorName}. Попробуйте еще раз.");
+                    return false;
+                }
+            }
+
+            
+            MessageBox.Show($"Виртуальный принтер {printerName} установлен.");
+            return true;
+        }
+
+        private bool configureMonitorRegistry(string monitorName, string portName)
+        {
+            string keyName = $"SYSTEM\\CurrentControlSet\\Control\\Print\\Monitors\\{monitorName}\\{portName}";
+            try
+            {
+                Registry.LocalMachine.CreateSubKey(keyName);
+                using(RegistryKey regKey = Registry.LocalMachine.OpenSubKey(keyName,true))
+                {
+                    if(regKey == null)
+                        return false;
+
+                    regKey.SetValue("OutputPath",       Settings.Default.PsFolder,  RegistryValueKind.String);
+                    regKey.SetValue("FilePattern",      "%Y-%m-%dfile%i.ps",        RegistryValueKind.String);
+                    regKey.SetValue("Overwrite",        0,                          RegistryValueKind.DWord);
+                    regKey.SetValue("UserCommand",      "%f",                       RegistryValueKind.String);
+                    regKey.SetValue("ExecPath",         string.Empty,               RegistryValueKind.String);
+                    regKey.SetValue("WaitTermination",  0,                          RegistryValueKind.DWord);
+                    regKey.SetValue("PipeData",         0,                          RegistryValueKind.DWord);
+                }
+                return true;
+            }
+            catch(UnauthorizedAccessException e)
+            {
+                Console.WriteLine(e?.Message);
+                MessageBox.Show("Необходимо запустить от имени администратора.");
+                return false;
+            }
+        }
+
+        private bool isRegistryConfigured(string monitorName,string portName)
+        {
+            string keyName = $"SYSTEM\\CurrentControlSet\\Control\\Print\\Monitors\\{monitorName}\\{portName}";
+            try
+            {
+                using(RegistryKey regKey = Registry.LocalMachine.OpenSubKey(keyName,true))
+                {
+                    if(regKey == null)
+                        return false;
+                    return regKey.GetValue("OutputPath").Equals(Settings.Default.PsFolder);
+                }
+            }
+            catch(UnauthorizedAccessException e)
+            {
+                Console.WriteLine(e?.Message);
+                return false;
+            }
+        }
+
+        private bool deleteRegistryConfig(string monitorName,string portName)
+        {
+            string keyName = $"SYSTEM\\CurrentControlSet\\Control\\Print\\Monitors\\{monitorName}\\{portName}";
+            try
+            {
+                Registry.LocalMachine.DeleteSubKey(keyName,true);
+                return true;
+            }
+            catch(UnauthorizedAccessException e)
+            {
+                Console.WriteLine(e?.Message);
+                return false;
+            }
         }
 
     }

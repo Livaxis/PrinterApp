@@ -47,7 +47,7 @@
                 FontWeight="Medium">
                 <Button.Resources>
                     <Style TargetType="Border">
-                        <Setter Property="CornerRadius" Value="13" />
+                        <Setter Property="CornerRadius" Value="3" />
                     </Style>
                 </Button.Resources>
             </Button>

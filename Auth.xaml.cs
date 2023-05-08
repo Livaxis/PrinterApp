@@ -57,7 +57,8 @@ namespace PrinterApp
                 Settings.Default.Save();
 
                 // обработка полученного токена
-                new SettingsWindow().Show();
+                var w = new SettingsWindow();
+                w.Show();
                 this.Close();
             }
             catch (HttpRequestException ex)

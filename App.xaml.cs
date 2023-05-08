@@ -23,7 +23,7 @@ namespace PrinterApp
                 {
                     Application.Current.MainWindow = new Auth();
                 }
-                else if(isSettingsNotFilled() || PrinterUtils.isGhostScriptNotInstalled())
+                else if(isSettingsNotFilled() || PrinterUtils.IsGhostScriptNotInstalled())
                 {
                     Application.Current.MainWindow = new SettingsWindow();
                 }

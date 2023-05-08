@@ -9,7 +9,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Drawing.Printing;
 using System;
-using Escorp.Printing;
 using Ghostscript.NET;
 using Ghostscript.NET.Processor;
 using System.Collections.Generic;
@@ -22,9 +21,6 @@ namespace PrinterApp
     /// </summary>
     public partial class MainWindow : Window
     {
-        const string OUTPUT_PATH = @"Printing";
-        const string OUTPUT_PATH_PS = @"Printing\postscript";
-
         private FileSystemWatcher _pdfWatcher;
         private FileSystemWatcher _psWatcher;
 
@@ -32,91 +28,8 @@ namespace PrinterApp
         {
             InitializeComponent();
             lblUserName.Content = "Пользователь: " + Properties.Settings.Default.UserLogin;
-            createVirtualPrinter();
             watchPDF();
             watchPS();
-        }
-
-        private void createVirtualPrinter()
-        {
-            const string MonitorName = "mfilemon";
-            const string PortName = "MYPORT:";
-            const string DriverName = "MyDriver";
-            const string PrinterName = "MyPrinter";
-
-            string BASE_PATH = Directory.GetCurrentDirectory() + "\\NewDrivers";
-
-            string MonitorFile = BASE_PATH + "mfilemon.dll";
-            string DriverFile = BASE_PATH + "pscript5.dll";
-            string DriverDataFile = BASE_PATH + "testprinter.ppd";
-            string DriverConfigFile = BASE_PATH + "ps5ui.dll";
-            string DriverHelpFile = BASE_PATH + "pscript.hlp";
-
-            if(!Path.Exists(OUTPUT_PATH))
-            {
-                Directory.CreateDirectory(OUTPUT_PATH);
-            }
-
-            if(!Path.Exists(OUTPUT_PATH_PS))
-            {
-                Directory.CreateDirectory(OUTPUT_PATH_PS);
-            }
-            List<string> printers = new List<string>();
-            foreach(string p in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
-            {
-                printers.Add(p);
-            }
-            var isPrinterInstalled = printers.Any(p => p.Equals(PrinterName));
-            if(isPrinterInstalled)
-            {
-                return;
-            }
-
-            PrintingApi.TryRestart();
-
-            Monitor monitor = new Monitor(MonitorName,MonitorFile);
-            var res = monitor.TryInstall();
-
-            Port port = PrintingApi.OpenPort(PortName,monitor);
-            bool portInstalled = port.TryInstall();
-            Driver driver = PrintingApi.InstallDriver(DriverName,DriverFile,DriverDataFile,DriverConfigFile,DriverHelpFile,3,Escorp.Printing.Environment.Current,DataType.RAW,null,monitor);
-            bool driverInstalled = port.TryInstall();
-
-            Printer printer = new(PrinterName,PortName,DriverName);
-
-            if(!printer.TryInstall(out PrintingException? ex))
-                Console.WriteLine(ex?.Message);
-
-            string keyName = $"SYSTEM\\CurrentControlSet\\Control\\Print\\Monitors\\{MonitorName}\\{PortName}";
-
-            try
-            {
-                Registry.LocalMachine.CreateSubKey(keyName);
-                using(RegistryKey regKey = Registry.LocalMachine.OpenSubKey(keyName,true))
-                {
-                    if(regKey == null)
-                        return;
-
-                    regKey.SetValue("OutputPath", Directory.GetCurrentDirectory() + "\\" + OUTPUT_PATH_PS, RegistryValueKind.String);
-                    regKey.SetValue("FilePattern","%r_%c_%u_%Y%m%d_%H%n%s_%j.ps",RegistryValueKind.String);
-                    regKey.SetValue("Overwrite",0,RegistryValueKind.DWord);
-                    regKey.SetValue("UserCommand",string.Empty,RegistryValueKind.String);
-                    regKey.SetValue("ExecPath",string.Empty,RegistryValueKind.String);
-                    regKey.SetValue("WaitTermination",0,RegistryValueKind.DWord);
-                    regKey.SetValue("PipeData",0,RegistryValueKind.DWord);
-                }
-                MessageBox.Show($"Виртуальный принтер {PrinterName} установлен.");
-            }
-            catch(UnauthorizedAccessException e)
-            {
-                Console.WriteLine(e?.Message);
-                MessageBox.Show("Необходимо запустить от имени администратора.");
-                return;
-            } 
-            finally
-            {
-                PrintingApi.TryRestart();
-            }
         }
         
         private void watchPDF()
@@ -124,9 +37,9 @@ namespace PrinterApp
             if(_pdfWatcher == null)
             {
                 _pdfWatcher = new FileSystemWatcher();
-                _pdfWatcher.Path = Directory.GetCurrentDirectory() + "\\" + OUTPUT_PATH;
-                _pdfWatcher.NotifyFilter = NotifyFilters.LastAccess | NotifyFilters.LastWrite
-                                       | NotifyFilters.FileName | NotifyFilters.DirectoryName;
+                _pdfWatcher.Path = Settings.Default.PdfFolder;
+                _pdfWatcher.NotifyFilter = NotifyFilters.LastWrite
+                                       | NotifyFilters.FileName;
                 _pdfWatcher.Filter = "*.*";
                 _pdfWatcher.Changed += new FileSystemEventHandler(OnChangedPDF);
                 _pdfWatcher.EnableRaisingEvents = true;
@@ -138,9 +51,9 @@ namespace PrinterApp
             if(_psWatcher == null)
             {
                 _psWatcher = new FileSystemWatcher();
-                _psWatcher.Path = Directory.GetCurrentDirectory() + "\\" + OUTPUT_PATH_PS;
-                _psWatcher.NotifyFilter = NotifyFilters.LastAccess | NotifyFilters.LastWrite
-                                       | NotifyFilters.FileName | NotifyFilters.DirectoryName;
+                _psWatcher.Path = Settings.Default.PsFolder;
+                _psWatcher.NotifyFilter = NotifyFilters.LastWrite
+                                       | NotifyFilters.FileName;
                 _psWatcher.Filter = "*.*";
                 _psWatcher.Changed += new FileSystemEventHandler(OnChangedPS);
                 _psWatcher.EnableRaisingEvents = true;
@@ -368,7 +281,7 @@ namespace PrinterApp
                     processor.StartProcessing(switches.ToArray(),null);
 
                     byte[] rawDocumentData = gsPipedOutput.Data;
-                    File.WriteAllBytes(OUTPUT_PATH + pdfFileName, rawDocumentData);
+                    File.WriteAllBytes(Settings.Default.PdfFolder + "\\" + pdfFileName, rawDocumentData);
                 }
                 catch(Exception ex)
                 {
