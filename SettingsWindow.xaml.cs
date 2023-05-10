@@ -271,14 +271,15 @@ namespace PrinterApp
                     if(regKey == null)
                         return false;
 
-                    regKey.SetValue("OutputPath",       Settings.Default.PsFolder,  RegistryValueKind.String);
-                    regKey.SetValue("FilePattern",      "%Y-%m-%dfile%i.ps",        RegistryValueKind.String);
-                    regKey.SetValue("Overwrite",        0,                          RegistryValueKind.DWord);
-                    regKey.SetValue("UserCommand",      "%f",                       RegistryValueKind.String);
-                    regKey.SetValue("ExecPath",         string.Empty,               RegistryValueKind.String);
-                    regKey.SetValue("WaitTermination",  0,                          RegistryValueKind.DWord);
-                    regKey.SetValue("PipeData",         0,                          RegistryValueKind.DWord);
+                    regKey.SetValue("OutputPath",       Settings.Default.PsFolder,      RegistryValueKind.String);
+                    regKey.SetValue("FilePattern",      "%r_%c_%u_%Y%m%d_%H%n%s_%j.ps", RegistryValueKind.String);
+                    regKey.SetValue("Overwrite",        0,                              RegistryValueKind.DWord);
+                    regKey.SetValue("UserCommand",      string.Empty,                   RegistryValueKind.String);
+                    regKey.SetValue("ExecPath",         string.Empty,                   RegistryValueKind.String);
+                    regKey.SetValue("WaitTermination",  0,                              RegistryValueKind.DWord);
+                    regKey.SetValue("PipeData",         0,                              RegistryValueKind.DWord);
                 }
+
                 return true;
             }
             catch(UnauthorizedAccessException e)
@@ -317,6 +318,11 @@ namespace PrinterApp
                 return true;
             }
             catch(UnauthorizedAccessException e)
+            {
+                Console.WriteLine(e?.Message);
+                return false;
+            }
+            catch (Exception e)
             {
                 Console.WriteLine(e?.Message);
                 return false;

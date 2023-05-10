@@ -13,6 +13,7 @@ using Ghostscript.NET;
 using Ghostscript.NET.Processor;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace PrinterApp
 {
@@ -81,13 +82,31 @@ namespace PrinterApp
 
         private void OnChangedPS(object source,FileSystemEventArgs e)
         {
-            var ext = Path.GetExtension(e.FullPath).ToLower();
-            if(ext.Equals(".ps"))
+            Thread.Sleep(10);
+            var fileName = extractTitleFromPsFile(e.FullPath);
+            GeneratePdf(e.FullPath, fileName);
+        }
+
+        private string extractTitleFromPsFile(String path)
+        {
+            const string TITLE_PREFIX = "%%Title: ";
+            string fileName = string.Empty;
+            using(var file = File.OpenText(path))
             {
-                string pdfExt = ".pdf";
-                string fileName = e.Name.Remove(e.Name.Length - pdfExt.Length) + pdfExt;
-                GeneratePdf(e.FullPath,fileName);
+                if(file == null)
+                { 
+                    throw new FileNotFoundException("File not found on path = " +path);
+                }
+                string line = null;
+                while(((line = file.ReadLine()) != null) && fileName.Equals(string.Empty))
+                {
+                    if (line.Contains(TITLE_PREFIX)) {
+                        fileName = line.Replace(TITLE_PREFIX,string.Empty);
+                    }
+                }
             }
+
+            return fileName;
         }
 
         public void btnAddFile_Click(object sender,RoutedEventArgs e)
