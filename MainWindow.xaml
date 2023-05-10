@@ -5,7 +5,7 @@
     Title="SignO"
     Width="800"
     Height="500"
-    MinWidth="580"
+    MinWidth="780"
     MinHeight="500">
     <Grid
         x:Name="MainGridPanel"
@@ -164,7 +164,7 @@
                                 FontWeight="DemiBold"
                                 Text="{Binding Position}" />
                             <TextBlock
-                                MaxWidth="200"
+                                MaxWidth="400"
                                 Margin="20,0,20,0"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Center"

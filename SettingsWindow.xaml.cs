@@ -272,7 +272,7 @@ namespace PrinterApp
                         return false;
 
                     regKey.SetValue("OutputPath",       Settings.Default.PsFolder,      RegistryValueKind.String);
-                    regKey.SetValue("FilePattern",      "%r_%c_%u_%Y%m%d_%H%n%s_%j.ps", RegistryValueKind.String);
+                    regKey.SetValue("FilePattern",      "file%i.ps",                    RegistryValueKind.String);
                     regKey.SetValue("Overwrite",        0,                              RegistryValueKind.DWord);
                     regKey.SetValue("UserCommand",      string.Empty,                   RegistryValueKind.String);
                     regKey.SetValue("ExecPath",         string.Empty,                   RegistryValueKind.String);

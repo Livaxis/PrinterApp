@@ -14,6 +14,7 @@ using Ghostscript.NET.Processor;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Text;
 
 namespace PrinterApp
 {
@@ -274,6 +275,10 @@ namespace PrinterApp
 
         public void GeneratePdf(string inputPath, string pdfFileName)
         {
+            if (isCyrillic(pdfFileName))
+            { 
+                pdfFileName = extractCyrillycFileName(pdfFileName);
+            }
 
             GhostscriptPipedOutput gsPipedOutput = new GhostscriptPipedOutput();
 
@@ -314,5 +319,30 @@ namespace PrinterApp
             }
         }
 
+        private bool isCyrillic(string fileName)
+        {
+            return fileName.StartsWith("<") && fileName.EndsWith(">");
+        }
+
+        private string extractCyrillycFileName(string input)
+        {
+            if(!isCyrillic(input))
+            {
+                throw new Exception("THis method for only cyrillic symbols");
+            }
+            input = input.Remove(0, 1);
+            input = input.Remove(input.Length - 1, 1);
+
+            byte[] bytes = new byte[input.Length / 2];
+
+            for(int i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = Convert.ToByte(input.Substring(i * 2,2),16);
+            }
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            var encoding = Encoding.GetEncoding("windows-1251");
+            string output = encoding.GetString(bytes);
+            return output;
+        }
     }
 }
