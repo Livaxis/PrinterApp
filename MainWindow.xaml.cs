@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Text;
+using Escorp.Printing;
 
 namespace PrinterApp
 {
@@ -29,6 +30,7 @@ namespace PrinterApp
         public MainWindow()
         {
             InitializeComponent();
+            Driver[] drivers = Driver.All;
             lblUserName.Content = "Пользователь: " + Properties.Settings.Default.UserLogin;
             watchPDF();
             watchPS();
@@ -69,8 +71,7 @@ namespace PrinterApp
             if(ext.Equals(".pdf"))
             {
                 ItemInfo info = new ItemInfo();
-                string fileName = e.Name;
-                info.Name = fileName;
+                info.Name = e.Name;
                 info.Position = lvFiles.Items.Count + 1;
                 info.Path = e.FullPath;
                 Application.Current.Dispatcher.InvokeAsync(new Action(() =>
@@ -342,6 +343,13 @@ namespace PrinterApp
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             var encoding = Encoding.GetEncoding("windows-1251");
             string output = encoding.GetString(bytes);
+
+            if(output.EndsWith("fr3"))
+            {
+                output = output.Remove(output.Length - 3);
+                output += "pdf";
+            }
+
             return output;
         }
     }

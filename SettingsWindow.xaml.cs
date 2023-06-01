@@ -176,7 +176,8 @@ namespace PrinterApp
         private bool createVirtualPrinter()
         {
             const string monitorName = "mfilemon";
-            const string driverName = "SignoDriver";
+            //const string driverName = "SignoDriver";
+            const string driverName = "Microsoft MS-XPS Class Driver 2";
 
             string portName = portNameTB.Text;
             string printerName = printerNameTB.Text;
@@ -247,10 +248,10 @@ namespace PrinterApp
             if(!PrinterUtils.IsPrinterInstalled(printerName))
             {
                 Printer printer = new(printerName,portName,driverName);
-                bool installed = printer.TryInstall();
+                bool installed = printer.TryInstall(out PrintingException? ex);
                 if(!installed)
                 {
-                    MessageBox.Show($"Безуспешная установка принтера {printerName} с указанной ошибкой {monitorName}. Попробуйте еще раз.");
+                    MessageBox.Show($"Безуспешная установка принтера {printerName} с указанной ошибкой {ex.Message}. Попробуйте еще раз.");
                     return false;
                 }
             }
